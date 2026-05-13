@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: shelfaware-postgres
+    environment:
+      POSTGRES_DB: shelfaware
+      POSTGRES_USER: shelfaware
+      POSTGRES_PASSWORD: shelfaware
+    ports:
+      - "5432:5432"
+    volumes:
+      - shelfaware-postgres:/var/lib/postgresql/data
+
+volumes:
+  shelfaware-postgres:
