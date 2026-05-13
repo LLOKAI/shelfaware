@@ -1,6 +1,6 @@
 # ShelfAware
 
-ShelfAware is a Spring Boot reading journal and review API. It started as a small class project and is being rebuilt into a portfolio-grade backend that showcases Java, Spring Boot, persistence, security, validation, testing, and deployable API design.
+ShelfAware is a full-stack reading journal and review app. It started as a small class project and is being rebuilt into a portfolio-grade Spring Boot + React project that showcases Java backend architecture, API design, authentication, persistence, and a modern frontend.
 
 ## What It Does
 
@@ -27,6 +27,16 @@ ShelfAware is a Spring Boot reading journal and review API. It started as a smal
 - H2 for local fast startup, PostgreSQL profile for production-like runs
 - MockMvc integration test covering register -> login -> import book -> shelf -> review -> insights
 
+## Frontend Highlights
+
+- React + TypeScript + Vite
+- JWT-aware API client with persisted auth state
+- Book discovery flow backed by the Spring Boot Open Library adapter
+- Local library, personal shelf, book detail, review, and insights screens
+- TanStack Query for server state
+- Recharts-powered reading analytics
+- Responsive product UI with a dedicated ShelfAware visual identity
+
 ## Project Structure
 
 ```text
@@ -39,11 +49,17 @@ src/main/java/com/shelfaware
   repository/   Spring Data repositories
   security/     Spring Security and JWT support
   service/      Transactional business logic
+
+frontend/src
+  api/          Typed API client
+  state/        Auth context and token persistence
+  App.tsx       Routes and screens
+  styles.css    Frontend design system
 ```
 
 ## Run Locally
 
-Use the default H2-backed profile:
+Use the default H2-backed backend profile:
 
 ```bash
 ./mvnw spring-boot:run
@@ -71,6 +87,32 @@ JDBC URL:
 
 ```text
 jdbc:h2:mem:shelfaware
+```
+
+Run the frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend URL:
+
+```text
+http://127.0.0.1:5173
+```
+
+By default, the frontend calls:
+
+```text
+http://localhost:8080
+```
+
+Override that with `frontend/.env.local`:
+
+```text
+VITE_API_BASE_URL=http://localhost:8080
 ```
 
 ## PostgreSQL Mode
@@ -173,15 +215,25 @@ curl -X PUT http://localhost:8080/api/books/4/reviews/me \
 
 ## Tests
 
+Backend:
+
 ```bash
 ./mvnw test
 ```
 
-Current coverage includes Spring context startup and a JWT-authenticated end-to-end shelf workflow.
+Frontend:
+
+```bash
+cd frontend
+npm run build
+```
+
+Current backend coverage includes Spring context startup and a JWT-authenticated end-to-end shelf workflow. The frontend currently has a production TypeScript build check.
 
 ## Next Milestones
 
-- Build the React + TypeScript frontend
 - Add OpenAPI documentation
 - Add Testcontainers for PostgreSQL-backed integration tests
+- Add route-level code splitting for the frontend insights bundle
+- Add frontend component/integration tests
 - Deploy backend and frontend as a live portfolio demo
