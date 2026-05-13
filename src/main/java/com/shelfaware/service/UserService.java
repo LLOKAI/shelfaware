@@ -25,6 +25,11 @@ public class UserService {
 
     @Transactional
     public AuthenticatedUserResponse register(RegisterRequest request) {
+        return toResponse(registerUser(request));
+    }
+
+    @Transactional
+    public UserAccount registerUser(RegisterRequest request) {
         if (userAccountRepository.existsByEmailIgnoreCase(request.email())) {
             throw new ConflictException("Email is already registered");
         }
@@ -40,12 +45,18 @@ public class UserService {
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.getRoles().add(Role.USER);
 
-        return toResponse(userAccountRepository.save(user));
+        return userAccountRepository.save(user);
     }
 
     @Transactional(readOnly = true)
     public UserAccount getUser(Long id) {
         return userAccountRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    }
+
+    @Transactional(readOnly = true)
+    public UserAccount getByUsername(String username) {
+        return userAccountRepository.findByUsernameIgnoreCase(username)
             .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 

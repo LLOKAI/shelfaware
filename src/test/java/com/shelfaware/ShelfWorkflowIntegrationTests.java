@@ -1,6 +1,5 @@
 package com.shelfaware;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -42,12 +41,29 @@ class ShelfWorkflowIntegrationTests {
                     "password", password
                 ))))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.username").value(username));
+            .andExpect(jsonPath("$.user.username").value(username))
+            .andExpect(jsonPath("$.tokenType").value("Bearer"))
+            .andExpect(jsonPath("$.accessToken").isNotEmpty());
 
-        MvcResult bookResult = mockMvc.perform(post("/api/books")
-                .with(httpBasic(username, password))
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
+                    "usernameOrEmail", username,
+                    "password", password
+                ))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.user.username").value(username))
+            .andReturn();
+
+        JsonNode loginJson = objectMapper.readTree(loginResult.getResponse().getContentAsString());
+        String token = loginJson.get("accessToken").asText();
+
+        MvcResult bookResult = mockMvc.perform(post("/api/books/import")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                    "externalSource", "OPEN_LIBRARY",
+                    "externalId", "/works/OL27687548W",
                     "title", "Spring Boot in Practice",
                     "authors", "Somnath Musib",
                     "isbn", "9781617298813",
@@ -56,13 +72,14 @@ class ShelfWorkflowIntegrationTests {
                 ))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.title").value("Spring Boot in Practice"))
+            .andExpect(jsonPath("$.externalSource").value("OPEN_LIBRARY"))
             .andReturn();
 
         JsonNode bookJson = objectMapper.readTree(bookResult.getResponse().getContentAsString());
         long bookId = bookJson.get("id").asLong();
 
         mockMvc.perform(put("/api/me/shelf/{bookId}", bookId)
-                .with(httpBasic(username, password))
+                .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "status", "READING",
@@ -72,7 +89,7 @@ class ShelfWorkflowIntegrationTests {
             .andExpect(jsonPath("$.status").value("READING"));
 
         mockMvc.perform(put("/api/books/{bookId}/reviews/me", bookId)
-                .with(httpBasic(username, password))
+                .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "rating", 5,
@@ -82,7 +99,7 @@ class ShelfWorkflowIntegrationTests {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.rating").value(5));
 
-        mockMvc.perform(get("/api/me/insights").with(httpBasic(username, password)))
+        mockMvc.perform(get("/api/me/insights").header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.readingCount").value(1))
             .andExpect(jsonPath("$.reviewCount").value(1))

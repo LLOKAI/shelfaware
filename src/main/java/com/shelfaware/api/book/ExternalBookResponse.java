@@ -1,10 +1,10 @@
 package com.shelfaware.api.book;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
-public record BookResponse(
-    Long id,
+public record ExternalBookResponse(
+    String externalSource,
+    String externalId,
     String title,
     String authors,
     String isbn,
@@ -12,11 +12,7 @@ public record BookResponse(
     String coverImageUrl,
     String publisher,
     String categories,
-    String externalSource,
-    String externalId,
     LocalDate publishedDate,
-    Integer pageCount,
-    LocalDateTime createdAt,
-    LocalDateTime updatedAt
+    Integer pageCount
 ) {
 }

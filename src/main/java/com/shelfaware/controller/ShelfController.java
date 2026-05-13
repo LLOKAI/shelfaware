@@ -3,11 +3,12 @@ package com.shelfaware.controller;
 import com.shelfaware.api.shelf.ShelfItemRequest;
 import com.shelfaware.api.shelf.ShelfItemResponse;
 import com.shelfaware.domain.ReadingStatus;
-import com.shelfaware.security.CustomUserPrincipal;
+import com.shelfaware.domain.UserAccount;
 import com.shelfaware.service.ShelfService;
+import com.shelfaware.service.UserService;
 import jakarta.validation.Valid;
+import java.security.Principal;
 import java.util.List;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -21,25 +22,29 @@ import org.springframework.web.bind.annotation.RestController;
 public class ShelfController {
 
     private final ShelfService shelfService;
+    private final UserService userService;
 
-    public ShelfController(ShelfService shelfService) {
+    public ShelfController(ShelfService shelfService, UserService userService) {
         this.shelfService = shelfService;
+        this.userService = userService;
     }
 
     @GetMapping
     public List<ShelfItemResponse> getShelf(
-        @AuthenticationPrincipal CustomUserPrincipal principal,
+        Principal principal,
         @RequestParam(required = false) ReadingStatus status
     ) {
-        return shelfService.getShelf(principal.getId(), status);
+        UserAccount user = userService.getByUsername(principal.getName());
+        return shelfService.getShelf(user.getId(), status);
     }
 
     @PutMapping("/{bookId}")
     public ShelfItemResponse upsertShelfItem(
-        @AuthenticationPrincipal CustomUserPrincipal principal,
+        Principal principal,
         @PathVariable Long bookId,
         @Valid @RequestBody ShelfItemRequest request
     ) {
-        return shelfService.upsertShelfItem(principal.getId(), bookId, request);
+        UserAccount user = userService.getByUsername(principal.getName());
+        return shelfService.upsertShelfItem(user.getId(), bookId, request);
     }
 }

@@ -71,6 +71,8 @@ public class BookService {
             book.getCoverImageUrl(),
             book.getPublisher(),
             book.getCategories(),
+            book.getExternalSource(),
+            book.getExternalId(),
             book.getPublishedDate(),
             book.getPageCount(),
             book.getCreatedAt(),

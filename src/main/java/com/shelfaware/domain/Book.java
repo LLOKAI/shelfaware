@@ -41,6 +41,10 @@ public class Book {
 
     private String categories;
 
+    private String externalSource;
+
+    private String externalId;
+
     private LocalDate publishedDate;
 
     private Integer pageCount;
