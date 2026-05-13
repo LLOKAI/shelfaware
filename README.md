@@ -5,7 +5,8 @@ ShelfAware is a Spring Boot reading journal and review API. It started as a smal
 ## What It Does
 
 - Register users with BCrypt-hashed passwords
-- Search and create books
+- Login with stateless JWT bearer tokens for SPA-friendly authentication
+- Search local books and import external book metadata from Open Library
 - Track books on a personal shelf: `WANT_TO_READ`, `READING`, `FINISHED`, `FAVORITE`
 - Write one review per user per book
 - Keep reviews public or private
@@ -18,12 +19,13 @@ ShelfAware is a Spring Boot reading journal and review API. It started as a smal
 - REST controllers with DTO request/response models
 - Service layer with transactional business logic
 - Spring Data JPA entities and repositories
-- Spring Security with HTTP Basic as the first auth baseline
+- Spring Security with JWT resource-server authentication
 - Bean Validation for request contracts
 - Global API error responses
 - Flyway database migrations
+- External API adapter using Spring's `RestClient`
 - H2 for local fast startup, PostgreSQL profile for production-like runs
-- MockMvc integration test covering register -> create book -> shelf -> review -> insights
+- MockMvc integration test covering register -> login -> import book -> shelf -> review -> insights
 
 ## Project Structure
 
@@ -33,8 +35,9 @@ src/main/java/com/shelfaware
   controller/   REST API controllers
   domain/       JPA entities and enums
   exception/    API error handling
+  external/     Third-party API clients
   repository/   Spring Data repositories
-  security/     Spring Security configuration and principal
+  security/     Spring Security and JWT support
   service/      Transactional business logic
 ```
 
@@ -96,8 +99,10 @@ Public:
 
 ```http
 POST /api/auth/register
+POST /api/auth/login
 GET  /api/books
 GET  /api/books/{bookId}
+GET  /api/books/external-search?q={query}
 GET  /api/books/{bookId}/reviews
 ```
 
@@ -106,6 +111,7 @@ Authenticated:
 ```http
 GET  /api/auth/me
 POST /api/books
+POST /api/books/import
 GET  /api/me/shelf
 PUT  /api/me/shelf/{bookId}
 PUT  /api/books/{bookId}/reviews/me
@@ -123,18 +129,35 @@ curl -X POST http://localhost:8080/api/auth/register \
   -d '{"displayName":"Liam","email":"liam@example.com","username":"liam","password":"spring-boot-portfolio"}'
 ```
 
-Add a book:
+Login and save the token:
 
 ```bash
-curl -u liam:spring-boot-portfolio -X POST http://localhost:8080/api/books \
+TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"title":"Spring Boot in Practice","authors":"Somnath Musib","isbn":"9781617298813","categories":"Java, Spring Boot","pageCount":600}'
+  -d '{"usernameOrEmail":"liam","password":"spring-boot-portfolio"}' \
+  | jq -r '.accessToken')
+```
+
+Search Open Library through the ShelfAware backend:
+
+```bash
+curl "http://localhost:8080/api/books/external-search?q=spring%20boot&limit=5"
+```
+
+Import a selected external result:
+
+```bash
+curl -X POST http://localhost:8080/api/books/import \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"externalSource":"OPEN_LIBRARY","externalId":"/works/OL27687548W","title":"Spring Boot in Practice","authors":"Somnath Musib","isbn":"9781617298813","categories":"Java, Spring Boot","pageCount":600}'
 ```
 
 Track it:
 
 ```bash
-curl -u liam:spring-boot-portfolio -X PUT http://localhost:8080/api/me/shelf/4 \
+curl -X PUT http://localhost:8080/api/me/shelf/4 \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"status":"READING","privateNotes":"Reference this while improving my Java portfolio."}'
 ```
@@ -142,7 +165,8 @@ curl -u liam:spring-boot-portfolio -X PUT http://localhost:8080/api/me/shelf/4 \
 Review it:
 
 ```bash
-curl -u liam:spring-boot-portfolio -X PUT http://localhost:8080/api/books/4/reviews/me \
+curl -X PUT http://localhost:8080/api/books/4/reviews/me \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"rating":5,"body":"Practical, focused, and useful for backend design.","publicReview":true}'
 ```
@@ -153,12 +177,10 @@ curl -u liam:spring-boot-portfolio -X PUT http://localhost:8080/api/books/4/revi
 ./mvnw test
 ```
 
-Current coverage includes Spring context startup and an authenticated end-to-end shelf workflow.
+Current coverage includes Spring context startup and a JWT-authenticated end-to-end shelf workflow.
 
 ## Next Milestones
 
-- Add JWT auth for a cleaner SPA integration
-- Add external book search/import through Open Library or Google Books
 - Build the React + TypeScript frontend
 - Add OpenAPI documentation
 - Add Testcontainers for PostgreSQL-backed integration tests
