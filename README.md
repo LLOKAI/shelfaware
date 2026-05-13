@@ -1,60 +1,165 @@
-# BookReviews Application
+# ShelfAware
 
-## Overview
+ShelfAware is a Spring Boot reading journal and review API. It started as a small class project and is being rebuilt into a portfolio-grade backend that showcases Java, Spring Boot, persistence, security, validation, testing, and deployable API design.
 
-BookReviews is a full-stack web application developed using Spring Boot for the back-end and Thymeleaf (HTML/JavaScript) for the front-end. This application allows users to add, view, and review books. It features user authentication and role-based access control to manage access to different parts of the application.
+## What It Does
 
-## Features
+- Register users with BCrypt-hashed passwords
+- Search and create books
+- Track books on a personal shelf: `WANT_TO_READ`, `READING`, `FINISHED`, `FAVORITE`
+- Write one review per user per book
+- Keep reviews public or private
+- Generate personal reading insights: shelf counts, review count, average rating, and rating distribution
+- Seed a demo library through Flyway migrations
 
-- **User Authentication and Authorization:** Secure user login and role-based access control using Spring Security.
-- **CRUD Operations:** Full CRUD (Create, Read, Update, Delete) functionality for books and reviews.
-- **RESTful APIs:** RESTful endpoints to handle operations related to books and reviews.
-- **Dynamic Content Rendering:** Utilizes Thymeleaf templates to dynamically generate HTML content.
-- **Real-time Data Fetching:** JavaScript integration to asynchronously fetch and display book details and reviews.
-- **Database Integration:** Uses JPA and Hibernate for seamless database operations.
-- **Security:** Emphasizes secure design principles to protect user information.
+## Backend Highlights
 
-## Technologies Used
+- Spring Boot 3 / Java 17
+- REST controllers with DTO request/response models
+- Service layer with transactional business logic
+- Spring Data JPA entities and repositories
+- Spring Security with HTTP Basic as the first auth baseline
+- Bean Validation for request contracts
+- Global API error responses
+- Flyway database migrations
+- H2 for local fast startup, PostgreSQL profile for production-like runs
+- MockMvc integration test covering register -> create book -> shelf -> review -> insights
 
-- **Back-end:**
-  - Spring Boot
-  - Spring Security
-  - JPA/Hibernate
-- **Front-end:**
-  - Thymeleaf
-  - HTML5
-  - JavaScript
-- **Database:**
-  - H2 Database (in-memory for development purposes)
-- **Build Tool:**
-  - Maven
+## Project Structure
 
- <h2>Accessing the Application</h2>
-<p>Open your web browser and navigate to <a href="http://localhost:8080">http://localhost:8080</a>.</p>
-<p>Use the following credentials to log in as an admin:</p>
-<ul>
-  <li>Username: <strong>admin</strong></li>
-  <li>Password: <strong>password</strong></li>
-</ul>
+```text
+src/main/java/com/shelfaware
+  api/          Request and response DTOs
+  controller/   REST API controllers
+  domain/       JPA entities and enums
+  exception/    API error handling
+  repository/   Spring Data repositories
+  security/     Spring Security configuration and principal
+  service/      Transactional business logic
+```
 
-<h2>RESTful API Endpoints</h2>
+## Run Locally
 
-<h3>Books</h3>
-<ul>
-  <li><strong>GET /books:</strong> Retrieve a list of all books.</li>
-  <li><strong>GET /books/{id}:</strong> Retrieve details of a specific book by ID.</li>
-  <li><strong>POST /books:</strong> Add a new book.</li>
-</ul>
+Use the default H2-backed profile:
 
-<h3>Reviews</h3>
-<ul>
-  <li><strong>GET /reviews/{bookId}:</strong> Retrieve a list of reviews for a specific book.</li>
-  <li><strong>POST /reviews:</strong> Add a new review for a book.</li>
-</ul>
+```bash
+./mvnw spring-boot:run
+```
 
-<h2>Security</h2>
-<p>The application uses Spring Security to manage user authentication and authorization. The following roles are defined:</p>
-<ul>
-  <li><strong>USER:</strong> Can view and add reviews.</li>
-  <li><strong>ADMIN:</strong> Can perform all CRUD operations on books and reviews.</li>
-</ul>
+On Windows:
+
+```powershell
+.\mvnw.cmd spring-boot:run
+```
+
+The API runs at:
+
+```text
+http://localhost:8080
+```
+
+The H2 console is available at:
+
+```text
+http://localhost:8080/h2-console
+```
+
+JDBC URL:
+
+```text
+jdbc:h2:mem:shelfaware
+```
+
+## PostgreSQL Mode
+
+Start PostgreSQL:
+
+```bash
+docker compose up -d
+```
+
+Run the app with the PostgreSQL profile:
+
+```bash
+SPRING_PROFILES_ACTIVE=postgres ./mvnw spring-boot:run
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:SPRING_PROFILES_ACTIVE="postgres"; .\mvnw.cmd spring-boot:run
+```
+
+## Core API
+
+Public:
+
+```http
+POST /api/auth/register
+GET  /api/books
+GET  /api/books/{bookId}
+GET  /api/books/{bookId}/reviews
+```
+
+Authenticated:
+
+```http
+GET  /api/auth/me
+POST /api/books
+GET  /api/me/shelf
+PUT  /api/me/shelf/{bookId}
+PUT  /api/books/{bookId}/reviews/me
+GET  /api/me/reviews
+GET  /api/me/insights
+```
+
+## Example Workflow
+
+Register:
+
+```bash
+curl -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"displayName":"Liam","email":"liam@example.com","username":"liam","password":"spring-boot-portfolio"}'
+```
+
+Add a book:
+
+```bash
+curl -u liam:spring-boot-portfolio -X POST http://localhost:8080/api/books \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Spring Boot in Practice","authors":"Somnath Musib","isbn":"9781617298813","categories":"Java, Spring Boot","pageCount":600}'
+```
+
+Track it:
+
+```bash
+curl -u liam:spring-boot-portfolio -X PUT http://localhost:8080/api/me/shelf/4 \
+  -H "Content-Type: application/json" \
+  -d '{"status":"READING","privateNotes":"Reference this while improving my Java portfolio."}'
+```
+
+Review it:
+
+```bash
+curl -u liam:spring-boot-portfolio -X PUT http://localhost:8080/api/books/4/reviews/me \
+  -H "Content-Type: application/json" \
+  -d '{"rating":5,"body":"Practical, focused, and useful for backend design.","publicReview":true}'
+```
+
+## Tests
+
+```bash
+./mvnw test
+```
+
+Current coverage includes Spring context startup and an authenticated end-to-end shelf workflow.
+
+## Next Milestones
+
+- Add JWT auth for a cleaner SPA integration
+- Add external book search/import through Open Library or Google Books
+- Build the React + TypeScript frontend
+- Add OpenAPI documentation
+- Add Testcontainers for PostgreSQL-backed integration tests
+- Deploy backend and frontend as a live portfolio demo
