@@ -1,13 +1,12 @@
-package com.java.BookReviews;
+package com.shelfaware;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class BookReviewsApplicationTests {
+class ShelfAwareApplicationTests {
 
-	@Test
-	void contextLoads() {
-	}
-
+    @Test
+    void contextLoads() {
+    }
 }
