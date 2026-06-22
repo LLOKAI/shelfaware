@@ -27,6 +27,7 @@ import {
 } from 'recharts';
 import { api, ApiError } from './api/client';
 import { useAuth } from './state/AuthContext';
+import { useToast } from './state/ToastContext';
 import type { Book, ExternalBook, ReadingStatus, Review, ShelfItem } from './types';
 
 const STATUS_OPTIONS: Array<{ value: ReadingStatus; label: string }> = [
@@ -198,6 +199,7 @@ function DiscoverPage() {
   const { token } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { notify } = useToast();
   const [query, setQuery] = useState('spring boot');
   const [submittedQuery, setSubmittedQuery] = useState('spring boot');
   const [importedBooks, setImportedBooks] = useState<Record<string, Book>>({});
@@ -213,6 +215,10 @@ function DiscoverPage() {
     onSuccess: (book) => {
       setImportedBooks((current) => ({ ...current, [book.externalId ?? String(book.id)]: book }));
       queryClient.invalidateQueries({ queryKey: ['books'] });
+      notify(`${book.title} added to your library.`);
+    },
+    onError: (error) => {
+      notify(errorMessage(error), 'error');
     }
   });
 
@@ -235,11 +241,11 @@ function DiscoverPage() {
         <button type="submit">Search</button>
       </form>
 
-      <ErrorMessage error={searchQuery.error ?? importMutation.error} />
+      <ErrorMessage error={searchQuery.error} />
 
       {searchQuery.isLoading ? (
         <LoadingBlock label="Searching Open Library" />
-      ) : (
+      ) : searchQuery.data?.books.length ? (
         <div className="book-grid">
           {searchQuery.data?.books.map((book) => {
             const imported = importedBooks[book.externalId];
@@ -248,13 +254,15 @@ function DiscoverPage() {
                 key={book.externalId}
                 book={book}
                 imported={imported}
-                importing={importMutation.isPending}
+                importing={importMutation.isPending && importMutation.variables.externalId === book.externalId}
                 onImport={() => importMutation.mutate(book)}
                 onOpen={() => imported && navigate(`/books/${imported.id}`)}
               />
             );
           })}
         </div>
+      ) : (
+        <EmptyState title="No books found" text={`Try a broader title, author, or topic than “${submittedQuery}”.`} />
       )}
     </section>
   );
@@ -263,6 +271,7 @@ function DiscoverPage() {
 function LibraryPage() {
   const { token } = useAuth();
   const queryClient = useQueryClient();
+  const { notify } = useToast();
   const [query, setQuery] = useState('');
   const [statusByBook, setStatusByBook] = useState<Record<number, ReadingStatus>>({});
 
@@ -274,9 +283,13 @@ function LibraryPage() {
   const shelfMutation = useMutation({
     mutationFn: ({ book, status }: { book: Book; status: ReadingStatus }) =>
       api.updateShelfItem(token!, book.id, { status }),
-    onSuccess: () => {
+    onSuccess: (item) => {
       queryClient.invalidateQueries({ queryKey: ['shelf'] });
       queryClient.invalidateQueries({ queryKey: ['insights'] });
+      notify(`${item.book.title} moved to ${statusLabel(item.status).toLowerCase()}.`);
+    },
+    onError: (error) => {
+      notify(errorMessage(error), 'error');
     }
   });
 
@@ -293,11 +306,11 @@ function LibraryPage() {
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Filter local books" />
       </div>
 
-      <ErrorMessage error={booksQuery.error ?? shelfMutation.error} />
+      <ErrorMessage error={booksQuery.error} />
 
       {booksQuery.isLoading ? (
         <LoadingBlock label="Loading catalog" />
-      ) : (
+      ) : booksQuery.data?.content.length ? (
         <div className="book-grid">
           {booksQuery.data?.content.map((book) => (
             <BookCard
@@ -311,16 +324,19 @@ function LibraryPage() {
                   />
                   <button
                     className="small-button"
+                    disabled={shelfMutation.isPending && shelfMutation.variables.book.id === book.id}
                     onClick={() => shelfMutation.mutate({ book, status: statusByBook[book.id] ?? 'WANT_TO_READ' })}
                   >
-                    <Plus size={16} />
-                    Shelf
+                    {shelfMutation.isPending && shelfMutation.variables.book.id === book.id ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
+                    Add
                   </button>
                 </div>
               }
             />
           ))}
         </div>
+      ) : (
+        <EmptyState title="No books match" text="Clear the filter or import a new title from Discover." />
       )}
     </section>
   );
@@ -329,6 +345,7 @@ function LibraryPage() {
 function ShelfPage() {
   const { token } = useAuth();
   const queryClient = useQueryClient();
+  const { notify } = useToast();
   const [status, setStatus] = useState<ReadingStatus | ''>('');
 
   const shelfQuery = useQuery({
@@ -344,9 +361,13 @@ function ShelfPage() {
         startedOn: item.startedOn,
         finishedOn: item.finishedOn
       }),
-    onSuccess: () => {
+    onSuccess: (item) => {
       queryClient.invalidateQueries({ queryKey: ['shelf'] });
       queryClient.invalidateQueries({ queryKey: ['insights'] });
+      notify(`${item.book.title} is now ${statusLabel(item.status).toLowerCase()}.`);
+    },
+    onError: (error) => {
+      notify(errorMessage(error), 'error');
     }
   });
 
@@ -371,7 +392,7 @@ function ShelfPage() {
         ))}
       </div>
 
-      <ErrorMessage error={shelfQuery.error ?? updateMutation.error} />
+      <ErrorMessage error={shelfQuery.error} />
 
       {shelfQuery.isLoading ? (
         <LoadingBlock label="Loading shelf" />
@@ -385,7 +406,11 @@ function ShelfPage() {
                 <p>{item.book.authors}</p>
                 <span className="meta-pill">{statusLabel(item.status)}</span>
               </div>
-              <StatusSelect value={item.status} onChange={(nextStatus) => updateMutation.mutate({ item, nextStatus })} />
+              <StatusSelect
+                value={item.status}
+                disabled={updateMutation.isPending && updateMutation.variables.item.id === item.id}
+                onChange={(nextStatus) => updateMutation.mutate({ item, nextStatus })}
+              />
             </article>
           ))}
         </div>
@@ -460,6 +485,7 @@ function BookDetailPage() {
   const { token } = useAuth();
   const { bookId } = useParams();
   const queryClient = useQueryClient();
+  const { notify } = useToast();
   const id = Number(bookId);
   const [rating, setRating] = useState(5);
   const [body, setBody] = useState('');
@@ -484,14 +510,22 @@ function BookDetailPage() {
       setBody('');
       queryClient.invalidateQueries({ queryKey: ['reviews', id] });
       queryClient.invalidateQueries({ queryKey: ['insights'] });
+      notify('Your review has been saved.');
+    },
+    onError: (error) => {
+      notify(errorMessage(error), 'error');
     }
   });
 
   const shelfMutation = useMutation({
     mutationFn: () => api.updateShelfItem(token!, id, { status }),
-    onSuccess: () => {
+    onSuccess: (item) => {
       queryClient.invalidateQueries({ queryKey: ['shelf'] });
       queryClient.invalidateQueries({ queryKey: ['insights'] });
+      notify(`${item.book.title} added as ${statusLabel(item.status).toLowerCase()}.`);
+    },
+    onError: (error) => {
+      notify(errorMessage(error), 'error');
     }
   });
 
@@ -526,8 +560,8 @@ function BookDetailPage() {
           {book.description && <p className="description">{book.description}</p>}
           <div className="inline-controls">
             <StatusSelect value={status} onChange={setStatus} />
-            <button className="small-button" onClick={() => shelfMutation.mutate()}>
-              <Plus size={16} />
+            <button className="small-button" disabled={shelfMutation.isPending} onClick={() => shelfMutation.mutate()}>
+              {shelfMutation.isPending ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
               Add to shelf
             </button>
           </div>
@@ -541,10 +575,7 @@ function BookDetailPage() {
             <Sparkles size={18} />
           </div>
           <form className="form-stack" onSubmit={submitReview}>
-            <label>
-              Rating
-              <input type="number" min={1} max={5} value={rating} onChange={(event) => setRating(Number(event.target.value))} />
-            </label>
+            <StarRating value={rating} onChange={setRating} />
             <label>
               Review
               <textarea value={body} onChange={(event) => setBody(event.target.value)} required rows={7} />
@@ -553,8 +584,8 @@ function BookDetailPage() {
               <input type="checkbox" checked={publicReview} onChange={(event) => setPublicReview(event.target.checked)} />
               Public review
             </label>
-            <ErrorMessage error={reviewMutation.error ?? shelfMutation.error} />
             <button className="primary-action" disabled={reviewMutation.isPending}>
+              {reviewMutation.isPending && <Loader2 className="spin" size={18} />}
               Save review
             </button>
           </form>
@@ -637,15 +668,48 @@ function Cover({ book, large = false }: { book: Pick<Book, 'title' | 'coverImage
   );
 }
 
-function StatusSelect({ value, onChange }: { value: ReadingStatus; onChange: (status: ReadingStatus) => void }) {
+function StatusSelect({
+  value,
+  onChange,
+  disabled = false
+}: {
+  value: ReadingStatus;
+  onChange: (status: ReadingStatus) => void;
+  disabled?: boolean;
+}) {
   return (
-    <select value={value} onChange={(event) => onChange(event.target.value as ReadingStatus)}>
+    <select value={value} disabled={disabled} onChange={(event) => onChange(event.target.value as ReadingStatus)}>
       {STATUS_OPTIONS.map((option) => (
         <option key={option.value} value={option.value}>
           {option.label}
         </option>
       ))}
     </select>
+  );
+}
+
+function StarRating({ value, onChange }: { value: number; onChange: (rating: number) => void }) {
+  return (
+    <fieldset className="rating-field">
+      <legend>Rating</legend>
+      <div className="star-picker" aria-label={`${value} out of 5 stars`}>
+        {Array.from({ length: 5 }, (_, index) => {
+          const rating = index + 1;
+          return (
+            <button
+              key={rating}
+              type="button"
+              className={rating <= value ? 'selected' : ''}
+              onClick={() => onChange(rating)}
+              aria-label={`${rating} star${rating === 1 ? '' : 's'}`}
+              aria-pressed={rating === value}
+            >
+              <Star size={24} fill={rating <= value ? 'currentColor' : 'none'} />
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
   );
 }
 
@@ -706,8 +770,11 @@ function ErrorMessage({ error }: { error: unknown }) {
     return null;
   }
 
-  const message = error instanceof ApiError ? error.message : error instanceof Error ? error.message : 'Something went wrong';
-  return <div className="error-box">{message}</div>;
+  return <div className="error-box" role="alert">{errorMessage(error)}</div>;
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof ApiError ? error.message : error instanceof Error ? error.message : 'Something went wrong';
 }
 
 function statusLabel(status: ReadingStatus) {

@@ -12,6 +12,10 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -37,6 +41,23 @@ select {
 
 button {
   cursor: pointer;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid rgba(15, 118, 110, 0.28);
+  outline-offset: 3px;
 }
 
 button:disabled {
@@ -195,6 +216,13 @@ select:focus {
   color: #fffefa;
   font-weight: 750;
   padding: 0.78rem 1rem;
+  transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.primary-action:hover:not(:disabled),
+.small-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(15, 118, 110, 0.22);
 }
 
 .small-button {
@@ -240,12 +268,17 @@ select:focus {
   border-radius: 8px;
   color: #43524e;
   font-weight: 700;
+  transition: color 160ms ease, background-color 160ms ease, transform 160ms ease;
 }
 
 .nav-item.active,
 .nav-item:hover {
   color: #0e2622;
   background: #e3eee7;
+}
+
+.nav-item:hover {
+  transform: translateX(3px);
 }
 
 .account-box {
@@ -283,6 +316,13 @@ select:focus {
   border-radius: 8px;
   color: #43524e;
   background: #fffefa;
+  transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+
+.icon-button:hover {
+  color: #7f1d1d;
+  border-color: #fecaca;
+  background: #fff1f2;
 }
 
 .content-shell {
@@ -294,6 +334,7 @@ select:focus {
 .page-stack {
   display: grid;
   gap: 1.35rem;
+  animation: page-in 320ms ease both;
 }
 
 .page-header {
@@ -368,6 +409,14 @@ select:focus {
   display: grid;
   gap: 0.85rem;
   padding: 0.75rem;
+  box-shadow: 0 8px 30px rgba(23, 33, 31, 0.04);
+  transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+}
+
+.book-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(15, 118, 110, 0.25);
+  box-shadow: 0 18px 38px rgba(23, 33, 31, 0.1);
 }
 
 .book-card-body {
@@ -412,6 +461,11 @@ select:focus {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 350ms ease;
+}
+
+.book-card:hover .cover img {
+  transform: scale(1.035);
 }
 
 .tag-row,
@@ -455,6 +509,12 @@ select:focus {
   align-items: center;
   gap: 1rem;
   padding: 0.75rem;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.shelf-row:hover {
+  border-color: rgba(15, 118, 110, 0.24);
+  box-shadow: 0 10px 26px rgba(23, 33, 31, 0.06);
 }
 
 .detail-hero {
@@ -554,6 +614,40 @@ select:focus {
   color: #b45309;
 }
 
+.rating-field {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.rating-field legend {
+  margin-bottom: 0.42rem;
+  color: #43524e;
+  font-size: 0.92rem;
+  font-weight: 650;
+}
+
+.star-picker {
+  display: flex;
+  gap: 0.2rem;
+}
+
+.star-picker button {
+  display: inline-flex;
+  padding: 0.2rem;
+  border: 0;
+  color: #b8b1a4;
+  background: transparent;
+  transition: color 140ms ease, transform 140ms ease;
+}
+
+.star-picker button:hover,
+.star-picker button.selected {
+  color: #b45309;
+  transform: scale(1.1);
+}
+
 .check-row {
   display: flex !important;
   grid-template-columns: none !important;
@@ -572,6 +666,47 @@ select:focus {
   gap: 0.65rem;
   padding: 1rem;
   border-radius: 8px;
+}
+
+.toast-region {
+  position: fixed;
+  z-index: 100;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  display: grid;
+  width: min(390px, calc(100% - 2rem));
+  gap: 0.65rem;
+  pointer-events: none;
+}
+
+.toast {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid #b7dfcf;
+  border-radius: 10px;
+  color: #174536;
+  background: rgba(244, 255, 249, 0.97);
+  box-shadow: 0 18px 50px rgba(23, 33, 31, 0.2);
+  backdrop-filter: blur(14px);
+  animation: toast-in 240ms ease both;
+  pointer-events: auto;
+}
+
+.toast.error {
+  border-color: #fecaca;
+  color: #7f1d1d;
+  background: rgba(255, 241, 242, 0.97);
+}
+
+.toast button {
+  display: inline-flex;
+  padding: 0.25rem;
+  border: 0;
+  color: inherit;
+  background: transparent;
 }
 
 .loading-block {
@@ -610,6 +745,20 @@ select:focus {
   }
 }
 
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+}
+
 @media (max-width: 900px) {
   .auth-layout,
   .app-layout,
@@ -623,20 +772,55 @@ select:focus {
   }
 
   .sidebar {
-    position: static;
+    position: sticky;
+    z-index: 20;
+    top: 0;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
     height: auto;
+    padding: 0.7rem 1rem;
+    box-shadow: 0 8px 28px rgba(23, 33, 31, 0.08);
   }
 
   .nav-list {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.2rem;
   }
 
   .nav-item {
     justify-content: center;
+    padding: 0.7rem;
+  }
+
+  .nav-item:hover {
+    transform: none;
   }
 
   .nav-item span,
   .brand-lockup.compact span:last-child {
+    display: none;
+  }
+
+  .brand-lockup.compact {
+    width: auto;
+  }
+
+  .brand-mark {
+    width: 38px;
+    height: 38px;
+  }
+
+  .account-box {
+    display: flex;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .account-box > svg,
+  .account-box > div {
     display: none;
   }
 
@@ -660,7 +844,12 @@ select:focus {
   }
 
   .nav-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .sidebar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding-inline: 0.65rem;
   }
 
   .search-row {
@@ -674,5 +863,25 @@ select:focus {
   .metric-grid,
   .card-actions {
     grid-template-columns: 1fr;
+  }
+
+  .toast-region {
+    right: 1rem;
+    bottom: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
