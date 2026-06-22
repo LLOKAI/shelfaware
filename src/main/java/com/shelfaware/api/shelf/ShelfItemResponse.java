@@ -11,6 +11,8 @@ public record ShelfItemResponse(
     ReadingStatus status,
     LocalDate startedOn,
     LocalDate finishedOn,
+    int currentPage,
+    boolean favorite,
     String privateNotes,
     LocalDateTime createdAt,
     LocalDateTime updatedAt

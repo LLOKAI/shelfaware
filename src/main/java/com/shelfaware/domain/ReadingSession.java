@@ -2,8 +2,6 @@ package com.shelfaware.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -11,67 +9,49 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(
-    name = "shelf_items",
-    uniqueConstraints = @UniqueConstraint(name = "uk_shelf_items_user_book", columnNames = {"user_id", "book_id"})
-)
+@Table(name = "reading_sessions")
 @Getter
 @Setter
-public class ShelfItem {
-
+public class ReadingSession {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "book_id", nullable = false)
-    private Book book;
+    @JoinColumn(name = "shelf_item_id", nullable = false)
+    private ShelfItem shelfItem;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private UserAccount user;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private ReadingStatus status;
-
-    private LocalDate startedOn;
-
-    private LocalDate finishedOn;
+    private LocalDate readOn;
 
     @Column(nullable = false)
-    private int currentPage;
+    private int startPage;
 
     @Column(nullable = false)
-    private boolean favorite;
+    private int endPage;
 
-    @Column(length = 2_000)
-    private String privateNotes;
+    @Column(nullable = false)
+    private int pagesRead;
+
+    @Column(nullable = false)
+    private boolean completedBook;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
-
     @PrePersist
     void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
-        createdAt = now;
-        updatedAt = now;
-    }
-
-    @PreUpdate
-    void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        createdAt = LocalDateTime.now();
     }
 }

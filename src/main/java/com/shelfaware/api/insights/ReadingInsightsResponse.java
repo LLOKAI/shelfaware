@@ -10,6 +10,11 @@ public record ReadingInsightsResponse(
     long favoriteCount,
     long reviewCount,
     double averageRating,
-    Map<String, Long> ratingsDistribution
+    Map<String, Long> ratingsDistribution,
+    long pagesRead,
+    int currentStreak,
+    double averagePagesPerSession,
+    Map<String, Long> monthlyPages,
+    Map<String, Long> monthlyBooks
 ) {
 }

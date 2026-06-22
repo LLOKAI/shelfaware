@@ -9,6 +9,7 @@ public record ShelfItemRequest(
     @NotNull ReadingStatus status,
     LocalDate startedOn,
     LocalDate finishedOn,
-    @Size(max = 2_000) String privateNotes
+    @Size(max = 2_000) String privateNotes,
+    boolean favorite
 ) {
 }

@@ -17,4 +17,10 @@ public interface ShelfItemRepository extends JpaRepository<ShelfItem, Long> {
     Optional<ShelfItem> findByUserAndBook(UserAccount user, Book book);
 
     long countByUserIdAndStatus(Long userId, ReadingStatus status);
+
+    long countByUserIdAndFinishedOnBetween(Long userId, java.time.LocalDate from, java.time.LocalDate to);
+
+    long countByUserIdAndFavoriteTrue(Long userId);
+
+    List<ShelfItem> findByUserIdAndFinishedOnBetweenOrderByUpdatedAtDesc(Long userId, java.time.LocalDate from, java.time.LocalDate to);
 }

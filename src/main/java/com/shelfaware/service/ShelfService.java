@@ -8,6 +8,7 @@ import com.shelfaware.domain.ShelfItem;
 import com.shelfaware.domain.UserAccount;
 import com.shelfaware.repository.ShelfItemRepository;
 import java.util.List;
+import java.time.LocalDate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,9 +43,18 @@ public class ShelfService {
         item.setUser(user);
         item.setBook(book);
         item.setStatus(request.status());
-        item.setStartedOn(request.startedOn());
-        item.setFinishedOn(request.finishedOn());
+        if (request.status() == ReadingStatus.WANT_TO_READ) {
+            item.setStartedOn(null);
+            item.setFinishedOn(null);
+        } else if (request.status() == ReadingStatus.READING) {
+            item.setStartedOn(firstNonNull(request.startedOn(), item.getStartedOn(), LocalDate.now()));
+            item.setFinishedOn(null);
+        } else {
+            item.setStartedOn(firstNonNull(request.startedOn(), item.getStartedOn(), LocalDate.now()));
+            item.setFinishedOn(firstNonNull(request.finishedOn(), item.getFinishedOn(), LocalDate.now()));
+        }
         item.setPrivateNotes(request.privateNotes());
+        item.setFavorite(request.favorite());
 
         return toResponse(shelfItemRepository.save(item));
     }
@@ -56,9 +66,23 @@ public class ShelfService {
             item.getStatus(),
             item.getStartedOn(),
             item.getFinishedOn(),
+            item.getCurrentPage(),
+            item.isFavorite(),
             item.getPrivateNotes(),
             item.getCreatedAt(),
             item.getUpdatedAt()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public ShelfItem getShelfItem(Long userId, Long bookId) {
+        UserAccount user = userService.getUser(userId);
+        Book book = bookService.getBook(bookId);
+        return shelfItemRepository.findByUserAndBook(user, book)
+            .orElseThrow(() -> new com.shelfaware.exception.ResourceNotFoundException("Book is not on your shelf"));
+    }
+
+    private LocalDate firstNonNull(LocalDate first, LocalDate second, LocalDate fallback) {
+        return first != null ? first : second != null ? second : fallback;
     }
 }

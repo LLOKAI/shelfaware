@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
+import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -88,6 +89,73 @@ class ShelfWorkflowIntegrationTests {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.status").value("READING"));
 
+        int year = LocalDate.now().getYear();
+        String today = LocalDate.now().toString();
+
+        mockMvc.perform(put("/api/me/reading-goals/{year}", year)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("targetBooks", 12, "targetPages", 6000))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.targetBooks").value(12))
+            .andExpect(jsonPath("$.targetPages").value(6000));
+
+        mockMvc.perform(post("/api/me/shelf/{bookId}/progress", bookId)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("currentPage", 100, "readOn", today))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.session.pagesRead").value(100))
+            .andExpect(jsonPath("$.shelfItem.currentPage").value(100));
+
+        MvcResult completionResult = mockMvc.perform(post("/api/me/shelf/{bookId}/progress", bookId)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("currentPage", 600, "readOn", today))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.session.pagesRead").value(500))
+            .andExpect(jsonPath("$.session.completedBook").value(true))
+            .andExpect(jsonPath("$.shelfItem.status").value("FINISHED"))
+            .andExpect(jsonPath("$.milestone").value("Book finished"))
+            .andReturn();
+
+        long completionSessionId = objectMapper.readTree(completionResult.getResponse().getContentAsString())
+            .get("session").get("id").asLong();
+
+        mockMvc.perform(post("/api/me/shelf/{bookId}/progress", bookId)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("currentPage", 601, "readOn", today))))
+            .andExpect(status().isBadRequest());
+
+        mockMvc.perform(get("/api/me/journey")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.pagesRead").value(600))
+            .andExpect(jsonPath("$.completedBooks").value(1))
+            .andExpect(jsonPath("$.goal.booksProgress").value(org.hamcrest.Matchers.closeTo(8.33, 0.1)))
+            .andExpect(jsonPath("$.streak.currentDays").value(1));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete(
+                "/api/me/reading-sessions/{sessionId}", completionSessionId)
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/me/shelf").header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].currentPage").value(100))
+            .andExpect(jsonPath("$[0].status").value("READING"));
+
+        mockMvc.perform(put("/api/me/shelf/{bookId}", bookId)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                    "status", "READING",
+                    "favorite", true
+                ))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.favorite").value(true));
+
         mockMvc.perform(put("/api/books/{bookId}/reviews/me", bookId)
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -102,6 +170,8 @@ class ShelfWorkflowIntegrationTests {
         mockMvc.perform(get("/api/me/insights").header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.readingCount").value(1))
+            .andExpect(jsonPath("$.favoriteCount").value(1))
+            .andExpect(jsonPath("$.pagesRead").value(100))
             .andExpect(jsonPath("$.reviewCount").value(1))
             .andExpect(jsonPath("$.averageRating").value(5.0));
     }
