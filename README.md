@@ -7,10 +7,12 @@ ShelfAware is a full-stack reading journal and review app. It started as a small
 - Register users with BCrypt-hashed passwords
 - Login with stateless JWT bearer tokens for SPA-friendly authentication
 - Search local books and import external book metadata from Open Library
-- Track books on a personal shelf: `WANT_TO_READ`, `READING`, `FINISHED`, `FAVORITE`
+- Track books through `WANT_TO_READ`, `READING`, and `FINISHED`, with favorites kept independently
+- Log page progress as dated reading sessions with automatic start and finish transitions
+- Set annual book and page goals, follow streaks, and undo the latest progress update
 - Write one review per user per book
 - Keep reviews public or private
-- Generate personal reading insights: shelf counts, review count, average rating, and rating distribution
+- Generate personal reading insights: monthly pages, completion counts, reading pace, streaks, and ratings
 - Seed a demo library through Flyway migrations
 
 ## Backend Highlights
@@ -35,7 +37,9 @@ ShelfAware is a full-stack reading journal and review app. It started as a small
 - Local library, personal shelf, book detail, review, and insights screens
 - TanStack Query for server state
 - Recharts-powered reading analytics
+- Reading Journey home with goals, progress rings, quick session logging, streaks, and activity history
 - Responsive product UI with a dedicated ShelfAware visual identity
+- Vitest and Testing Library coverage for core Journey interactions
 
 ## Project Structure
 
@@ -155,7 +159,12 @@ GET  /api/auth/me
 POST /api/books
 POST /api/books/import
 GET  /api/me/shelf
-PUT  /api/me/shelf/{bookId}
+  PUT  /api/me/shelf/{bookId}
+POST /api/me/shelf/{bookId}/progress
+DELETE /api/me/reading-sessions/{sessionId}
+GET  /api/me/reading-goals/{year}
+PUT  /api/me/reading-goals/{year}
+GET  /api/me/journey?year={year}
 PUT  /api/books/{bookId}/reviews/me
 GET  /api/me/reviews
 GET  /api/me/insights
@@ -226,14 +235,15 @@ Frontend:
 ```bash
 cd frontend
 npm run build
+npm test
 ```
 
-Current backend coverage includes Spring context startup and a JWT-authenticated end-to-end shelf workflow. The frontend currently has a production TypeScript build check.
+Backend coverage includes Flyway favorite migration, streak calculation, Spring context startup, and a JWT-authenticated journey workflow. Frontend coverage exercises dashboard empty states, goal editing, progress entry, and mutation failures in addition to the production TypeScript build.
 
 ## Next Milestones
 
 - Add OpenAPI documentation
 - Add Testcontainers for PostgreSQL-backed integration tests
-- Add route-level code splitting for the frontend insights bundle
-- Add frontend component/integration tests
+- Add multi-year goal browsing and reading-session corrections beyond latest-session undo
+- Add optional reading-time tracking and format-aware progress for audiobooks
 - Deploy backend and frontend as a live portfolio demo
