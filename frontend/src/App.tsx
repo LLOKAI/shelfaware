@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, lazy, Suspense, useEffect, useState } from 'react';
 import { Link, Navigate, NavLink, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -7,6 +7,8 @@ import {
   Check,
   Compass,
   Library,
+  Heart,
+  House,
   Loader2,
   LogOut,
   Plus,
@@ -16,26 +18,19 @@ import {
   Star,
   UserRound
 } from 'lucide-react';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis
-} from 'recharts';
 import { api, ApiError } from './api/client';
 import { useAuth } from './state/AuthContext';
 import { useToast } from './state/ToastContext';
+import { JourneyPage } from './JourneyPage';
 import type { Book, ExternalBook, ReadingStatus, Review, ShelfItem } from './types';
 
 const STATUS_OPTIONS: Array<{ value: ReadingStatus; label: string }> = [
   { value: 'WANT_TO_READ', label: 'Want to read' },
   { value: 'READING', label: 'Reading' },
-  { value: 'FINISHED', label: 'Finished' },
-  { value: 'FAVORITE', label: 'Favorite' }
+  { value: 'FINISHED', label: 'Finished' }
 ];
+
+const InsightsPage = lazy(() => import('./InsightsPage').then((module) => ({ default: module.InsightsPage })));
 
 export function App() {
   const { isAuthenticated } = useAuth();
@@ -47,11 +42,11 @@ export function App() {
   return (
     <AppShell>
       <Routes>
-        <Route path="/" element={<Navigate to="/discover" replace />} />
+        <Route path="/" element={<JourneyPage />} />
         <Route path="/discover" element={<DiscoverPage />} />
         <Route path="/library" element={<LibraryPage />} />
         <Route path="/shelf" element={<ShelfPage />} />
-        <Route path="/insights" element={<InsightsPage />} />
+        <Route path="/insights" element={<Suspense fallback={<LoadingBlock label="Loading insights" />}><InsightsPage /></Suspense>} />
         <Route path="/books/:bookId" element={<BookDetailPage />} />
         <Route path="*" element={<Navigate to="/discover" replace />} />
       </Routes>
@@ -155,7 +150,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="app-layout">
       <aside className="sidebar">
-        <Link to="/discover" className="brand-lockup compact">
+        <Link to="/" className="brand-lockup compact">
           <span className="brand-mark">
             <BookOpen size={22} />
           </span>
@@ -163,6 +158,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
         </Link>
 
         <nav className="nav-list">
+          <NavItem to="/" icon={<House size={18} />} label="Journey" end />
           <NavItem to="/discover" icon={<Compass size={18} />} label="Discover" />
           <NavItem to="/library" icon={<Library size={18} />} label="Library" />
           <NavItem to="/shelf" icon={<BookOpen size={18} />} label="My shelf" />
@@ -186,9 +182,9 @@ function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function NavItem({ to, icon, label }: { to: string; icon: React.ReactNode; label: string }) {
+function NavItem({ to, icon, label, end = false }: { to: string; icon: React.ReactNode; label: string; end?: boolean }) {
   return (
-    <NavLink to={to} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+    <NavLink to={to} end={end} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
       {icon}
       {label}
     </NavLink>
@@ -354,17 +350,20 @@ function ShelfPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ item, nextStatus }: { item: ShelfItem; nextStatus: ReadingStatus }) =>
+    mutationFn: ({ item, nextStatus, favorite }: { item: ShelfItem; nextStatus?: ReadingStatus; favorite?: boolean }) =>
       api.updateShelfItem(token!, item.book.id, {
-        status: nextStatus,
+        status: nextStatus ?? item.status,
         privateNotes: item.privateNotes,
         startedOn: item.startedOn,
-        finishedOn: item.finishedOn
+        finishedOn: item.finishedOn,
+        favorite: favorite ?? item.favorite
       }),
-    onSuccess: (item) => {
+    onSuccess: (item, variables) => {
       queryClient.invalidateQueries({ queryKey: ['shelf'] });
       queryClient.invalidateQueries({ queryKey: ['insights'] });
-      notify(`${item.book.title} is now ${statusLabel(item.status).toLowerCase()}.`);
+      notify(variables.favorite === undefined
+        ? `${item.book.title} is now ${statusLabel(item.status).toLowerCase()}.`
+        : `${item.book.title} ${item.favorite ? 'added to' : 'removed from'} favorites.`);
     },
     onError: (error) => {
       notify(errorMessage(error), 'error');
@@ -411,72 +410,19 @@ function ShelfPage() {
                 disabled={updateMutation.isPending && updateMutation.variables.item.id === item.id}
                 onChange={(nextStatus) => updateMutation.mutate({ item, nextStatus })}
               />
+              <button
+                className={item.favorite ? 'favorite-button active' : 'favorite-button'}
+                aria-label={item.favorite ? `Remove ${item.book.title} from favorites` : `Favorite ${item.book.title}`}
+                title={item.favorite ? 'Remove favorite' : 'Add favorite'}
+                disabled={updateMutation.isPending && updateMutation.variables.item.id === item.id}
+                onClick={() => updateMutation.mutate({ item, favorite: !item.favorite })}
+              ><Heart size={18} fill={item.favorite ? 'currentColor' : 'none'} /></button>
             </article>
           ))}
         </div>
       ) : (
         <EmptyState title="No books here yet" text="Import a book from Discover or add one from Library." />
       )}
-    </section>
-  );
-}
-
-function InsightsPage() {
-  const { token } = useAuth();
-  const insightsQuery = useQuery({
-    queryKey: ['insights'],
-    queryFn: () => api.getInsights(token!)
-  });
-
-  const ratingData = useMemo(
-    () =>
-      Object.entries(insightsQuery.data?.ratingsDistribution ?? {}).map(([rating, count]) => ({
-        rating: `${rating} star`,
-        count
-      })),
-    [insightsQuery.data]
-  );
-
-  return (
-    <section className="page-stack">
-      <PageHeader
-        eyebrow="Insights"
-        title="A clearer view of your reading life."
-        description="ShelfAware turns reviews and shelf actions into lightweight analytics."
-      />
-
-      <ErrorMessage error={insightsQuery.error} />
-
-      {insightsQuery.isLoading ? (
-        <LoadingBlock label="Calculating insights" />
-      ) : insightsQuery.data ? (
-        <>
-          <div className="metric-grid">
-            <Metric label="Shelf items" value={insightsQuery.data.totalShelfItems} />
-            <Metric label="Currently reading" value={insightsQuery.data.readingCount} />
-            <Metric label="Finished" value={insightsQuery.data.finishedCount} />
-            <Metric label="Average rating" value={insightsQuery.data.averageRating.toFixed(1)} />
-          </div>
-
-          <section className="chart-panel">
-            <div className="section-heading">
-              <h2>Rating distribution</h2>
-              <span>{insightsQuery.data.reviewCount} reviews</span>
-            </div>
-            <div className="chart-frame">
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={ratingData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="rating" />
-                  <YAxis allowDecimals={false} />
-                  <Tooltip cursor={{ fill: 'rgba(52, 211, 153, 0.12)' }} />
-                  <Bar dataKey="count" fill="#0f766e" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
-        </>
-      ) : null}
     </section>
   );
 }
@@ -491,6 +437,15 @@ function BookDetailPage() {
   const [body, setBody] = useState('');
   const [publicReview, setPublicReview] = useState(true);
   const [status, setStatus] = useState<ReadingStatus>('READING');
+  const shelfQuery = useQuery({
+    queryKey: ['shelf'],
+    queryFn: () => api.getShelf(token!)
+  });
+  const shelfItem = shelfQuery.data?.find((item) => item.book.id === id);
+
+  useEffect(() => {
+    if (shelfItem) setStatus(shelfItem.status);
+  }, [shelfItem]);
 
   const bookQuery = useQuery({
     queryKey: ['book', id],
@@ -518,11 +473,19 @@ function BookDetailPage() {
   });
 
   const shelfMutation = useMutation({
-    mutationFn: () => api.updateShelfItem(token!, id, { status }),
-    onSuccess: (item) => {
+    mutationFn: (favorite?: boolean) => api.updateShelfItem(token!, id, {
+      status,
+      privateNotes: shelfItem?.privateNotes,
+      startedOn: shelfItem?.startedOn,
+      finishedOn: shelfItem?.finishedOn,
+      favorite: favorite ?? shelfItem?.favorite ?? false
+    }),
+    onSuccess: (item, favorite) => {
       queryClient.invalidateQueries({ queryKey: ['shelf'] });
       queryClient.invalidateQueries({ queryKey: ['insights'] });
-      notify(`${item.book.title} added as ${statusLabel(item.status).toLowerCase()}.`);
+      notify(favorite === undefined
+        ? `${item.book.title} added as ${statusLabel(item.status).toLowerCase()}.`
+        : `${item.book.title} ${item.favorite ? 'added to' : 'removed from'} favorites.`);
     },
     onError: (error) => {
       notify(errorMessage(error), 'error');
@@ -560,10 +523,15 @@ function BookDetailPage() {
           {book.description && <p className="description">{book.description}</p>}
           <div className="inline-controls">
             <StatusSelect value={status} onChange={setStatus} />
-            <button className="small-button" disabled={shelfMutation.isPending} onClick={() => shelfMutation.mutate()}>
+            <button className="small-button" disabled={shelfMutation.isPending} onClick={() => shelfMutation.mutate(undefined)}>
               {shelfMutation.isPending ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
               Add to shelf
             </button>
+            <button
+              className={shelfItem?.favorite ? 'favorite-button active labeled' : 'favorite-button labeled'}
+              disabled={shelfMutation.isPending}
+              onClick={() => shelfMutation.mutate(!(shelfItem?.favorite ?? false))}
+            ><Heart size={17} fill={shelfItem?.favorite ? 'currentColor' : 'none'} />{shelfItem?.favorite ? 'Favorited' : 'Favorite'}</button>
           </div>
         </div>
       </div>
@@ -720,15 +688,6 @@ function PageHeader({ eyebrow, title, description }: { eyebrow: string; title: s
       <h1>{title}</h1>
       <p>{description}</p>
     </header>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string | number }) {
-  return (
-    <article className="metric-card">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </article>
   );
 }
 

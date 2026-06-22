@@ -6,6 +6,9 @@ import type {
   PageResponse,
   ReadingInsights,
   ReadingStatus,
+  Journey,
+  ProgressUpdate,
+  ReadingGoal,
   Review,
   ShelfItem,
   User
@@ -97,7 +100,7 @@ export const api = {
   updateShelfItem: (
     token: string,
     bookId: number,
-    body: { status: ReadingStatus; privateNotes?: string | null; startedOn?: string | null; finishedOn?: string | null }
+    body: { status: ReadingStatus; privateNotes?: string | null; startedOn?: string | null; finishedOn?: string | null; favorite?: boolean }
   ) => request<ShelfItem>(`/api/me/shelf/${bookId}`, { token, method: 'PUT', body }),
 
   getReviews: (bookId: number) => request<Review[]>(`/api/books/${bookId}/reviews`),
@@ -105,5 +108,25 @@ export const api = {
   reviewBook: (token: string, bookId: number, body: { rating: number; body: string; publicReview: boolean }) =>
     request<Review>(`/api/books/${bookId}/reviews/me`, { token, method: 'PUT', body }),
 
-  getInsights: (token: string) => request<ReadingInsights>('/api/me/insights', { token })
+  getInsights: (token: string) => request<ReadingInsights>('/api/me/insights', { token }),
+
+  getJourney: (token: string, year = new Date().getFullYear()) =>
+    request<Journey>(`/api/me/journey?year=${year}`, { token }),
+
+  updateProgress: (token: string, bookId: number, currentPage: number, readOn: string) =>
+    request<ProgressUpdate>(`/api/me/shelf/${bookId}/progress`, {
+      token,
+      method: 'POST',
+      body: { currentPage, readOn }
+    }),
+
+  undoReadingSession: (token: string, sessionId: number) =>
+    request<void>(`/api/me/reading-sessions/${sessionId}`, { token, method: 'DELETE' }),
+
+  saveReadingGoal: (token: string, year: number, targetBooks: number | null, targetPages: number | null) =>
+    request<ReadingGoal>(`/api/me/reading-goals/${year}`, {
+      token,
+      method: 'PUT',
+      body: { targetBooks, targetPages }
+    })
 };
