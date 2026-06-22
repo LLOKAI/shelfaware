@@ -12,6 +12,7 @@ import {
   Loader2,
   LogOut,
   Plus,
+  Play,
   Search,
   ShieldCheck,
   Sparkles,
@@ -56,6 +57,7 @@ export function App() {
 
 function AuthPage() {
   const { saveAuth } = useAuth();
+  const queryClient = useQueryClient();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -67,7 +69,18 @@ function AuthPage() {
       mode === 'login'
         ? api.login({ usernameOrEmail: username, password })
         : api.register({ displayName, email, username, password }),
-    onSuccess: saveAuth
+    onSuccess: (response) => {
+      queryClient.clear();
+      saveAuth(response);
+    }
+  });
+
+  const demoMutation = useMutation({
+    mutationFn: api.demo,
+    onSuccess: (response) => {
+      queryClient.clear();
+      saveAuth(response);
+    }
   });
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -133,12 +146,23 @@ function AuthPage() {
               required
             />
           </label>
-          <ErrorMessage error={authMutation.error} />
+          <ErrorMessage error={authMutation.error ?? demoMutation.error} />
           <button className="primary-action" type="submit" disabled={authMutation.isPending}>
             {authMutation.isPending && <Loader2 className="spin" size={18} />}
             {mode === 'login' ? 'Login' : 'Create account'}
           </button>
         </form>
+        <div className="demo-divider"><span>or</span></div>
+        <button
+          className="demo-action"
+          type="button"
+          disabled={demoMutation.isPending || authMutation.isPending}
+          onClick={() => demoMutation.mutate()}
+        >
+          {demoMutation.isPending ? <Loader2 className="spin" size={18} /> : <Play size={18} fill="currentColor" />}
+          Explore the live demo
+        </button>
+        <p className="demo-caption">Jump into a private sample profile filled with reading history, goals, reviews, and insights.</p>
       </section>
     </main>
   );

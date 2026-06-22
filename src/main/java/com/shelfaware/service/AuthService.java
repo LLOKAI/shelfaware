@@ -19,17 +19,20 @@ public class AuthService {
     private final UserAccountRepository userAccountRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final DemoAccountService demoAccountService;
 
     public AuthService(
         UserService userService,
         UserAccountRepository userAccountRepository,
         PasswordEncoder passwordEncoder,
-        JwtService jwtService
+        JwtService jwtService,
+        DemoAccountService demoAccountService
     ) {
         this.userService = userService;
         this.userAccountRepository = userAccountRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.demoAccountService = demoAccountService;
     }
 
     @Transactional
@@ -49,6 +52,11 @@ public class AuthService {
         }
 
         return toAuthResponse(user);
+    }
+
+    @Transactional
+    public AuthResponse createDemo() {
+        return toAuthResponse(demoAccountService.createDemoAccount());
     }
 
     private AuthResponse toAuthResponse(UserAccount user) {

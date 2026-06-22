@@ -36,6 +36,11 @@ public class AuthController {
         return authService.login(request);
     }
 
+    @PostMapping("/demo")
+    public AuthResponse demo() {
+        return authService.createDemo();
+    }
+
     @GetMapping("/me")
     public AuthenticatedUserResponse me(Principal principal) {
         return userService.toResponse(userService.getByUsername(principal.getName()));

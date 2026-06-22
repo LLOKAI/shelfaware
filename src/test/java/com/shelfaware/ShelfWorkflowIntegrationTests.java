@@ -29,6 +29,32 @@ class ShelfWorkflowIntegrationTests {
     private ObjectMapper objectMapper;
 
     @Test
+    void visitorCanEnterAnIsolatedPopulatedDemoProfile() throws Exception {
+        MvcResult demoResult = mockMvc.perform(post("/api/auth/demo"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.accessToken").isNotEmpty())
+            .andExpect(jsonPath("$.user.displayName").value("Alex Morgan"))
+            .andExpect(jsonPath("$.user.username", org.hamcrest.Matchers.startsWith("demo_")))
+            .andReturn();
+
+        String token = objectMapper.readTree(demoResult.getResponse().getContentAsString())
+            .get("accessToken").asText();
+
+        mockMvc.perform(get("/api/me/journey").header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.goal.targetBooks").value(12))
+            .andExpect(jsonPath("$.goal.targetPages").value(5000))
+            .andExpect(jsonPath("$.activeBooks.length()").value(1))
+            .andExpect(jsonPath("$.activeBooks[0].currentPage").value(284))
+            .andExpect(jsonPath("$.recentSessions.length()", org.hamcrest.Matchers.greaterThan(0)));
+
+        mockMvc.perform(get("/api/me/shelf").header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(3))
+            .andExpect(jsonPath("$[?(@.favorite == true)]", org.hamcrest.Matchers.hasSize(2)));
+    }
+
+    @Test
     void userCanCreateBookTrackShelfReviewAndSeeInsights() throws Exception {
         String username = "reader_" + System.nanoTime();
         String password = "spring-boot-portfolio";

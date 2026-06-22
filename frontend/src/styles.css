@@ -235,6 +235,54 @@ select:focus {
   background: #2f6f47;
 }
 
+.demo-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  color: #8a928f;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.demo-divider::before,
+.demo-divider::after {
+  height: 1px;
+  flex: 1;
+  content: "";
+  background: #ded8ca;
+}
+
+.demo-action {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 46px;
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba(15, 118, 110, 0.35);
+  border-radius: 8px;
+  color: #0f5f59;
+  background: #ecf8f1;
+  font-weight: 800;
+  transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.demo-action:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: #e0f3e8;
+  box-shadow: 0 10px 25px rgba(15, 118, 110, 0.14);
+}
+
+.demo-caption {
+  margin: 0.65rem 0 0;
+  color: #68736f;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
 .app-layout {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);

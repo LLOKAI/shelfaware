@@ -6,6 +6,7 @@ ShelfAware is a full-stack reading journal and review app. It started as a small
 
 - Register users with BCrypt-hashed passwords
 - Login with stateless JWT bearer tokens for SPA-friendly authentication
+- Enter an isolated, pre-populated demo profile with one click
 - Search local books and import external book metadata from Open Library
 - Track books through `WANT_TO_READ`, `READING`, and `FINISHED`, with favorites kept independently
 - Log page progress as dated reading sessions with automatic start and finish transitions
@@ -146,6 +147,8 @@ Public:
 ```http
 POST /api/auth/register
 POST /api/auth/login
+POST /api/auth/demo
+GET  /api/health
 GET  /api/books
 GET  /api/books/{bookId}
 GET  /api/books/external-search?q={query}
@@ -239,6 +242,10 @@ npm test
 ```
 
 Backend coverage includes Flyway favorite migration, streak calculation, Spring context startup, and a JWT-authenticated journey workflow. Frontend coverage exercises dashboard empty states, goal editing, progress entry, and mutation failures in addition to the production TypeScript build.
+
+## Deployment
+
+The production layout uses Vercel for the frontend, a Docker host for the Spring Boot API, and PostgreSQL for persistent data. See [DEPLOYMENT.md](DEPLOYMENT.md) for the complete Neon, Render, and Vercel walkthrough, environment variables, CORS configuration, and verification checklist.
 
 ## Next Milestones
 

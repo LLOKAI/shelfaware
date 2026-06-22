@@ -68,6 +68,8 @@ export const api = {
   login: (body: { usernameOrEmail: string; password: string }) =>
     request<AuthResponse>('/api/auth/login', { body }),
 
+  demo: () => request<AuthResponse>('/api/auth/demo', { method: 'POST' }),
+
   me: (token: string) => request<User>('/api/auth/me', { token }),
 
   searchBooks: (query: string) => {
